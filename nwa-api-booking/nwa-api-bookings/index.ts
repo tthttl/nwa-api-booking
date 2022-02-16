@@ -57,13 +57,38 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
             email: req.body.email,
           },
         };
-        const { resource } = await container.items.create(booking);
-        context.res = {
-          status: 201,
-          body: {
-            id: resource.id,
-          },
+
+        const querySpec: SqlQuerySpec = {
+          query: "SELECT * FROM c where c.user.email = @email and c.user.name = @name and c.user.id = @userid",
+          parameters: [
+            { name: "@name", value: req.body.name },
+            { name: "@email", value: req.body.email },
+            { name: "@userid", value: req.body.userId },
+          ],
         };
+        const { resources: existingBookings } = await container.items.query(querySpec).fetchAll();
+
+        if (existingBookings?.length > 1) {
+          existingBookings.map(async (booking: Booking) => await container.item(booking.id).delete());
+        }
+
+        if (existingBookings?.length === 1) {
+          const { resource } = await container.item(existingBookings[0].id).replace(booking);
+          context.res = {
+            status: 200,
+            body: {
+              id: resource.id,
+            },
+          };
+        } else {
+          const { resource } = await container.items.create(booking);
+          context.res = {
+            status: 201,
+            body: {
+              id: resource.id,
+            },
+          };
+        }
       } else {
         context.res = {
           status: 400,
@@ -94,13 +119,13 @@ const httpTrigger: AzureFunction = async function (context: Context, req: HttpRe
         };
         const { resources } = await container.items.query(parametrizedQuery).fetchAll();
         const bookings: Booking[] = resources.map((resource) => ({
-            id: resource.bookingId, 
-            tourType: resource.tourType,
-            user: {
-                id: resource.userId,
-                name: resource.name,
-                email: resource.email
-            }
+          id: resource.bookingId,
+          tourType: resource.tourType,
+          user: {
+            id: resource.userId,
+            name: resource.name,
+            email: resource.email,
+          },
         }));
 
         appInsightsClient.trackEvent({
