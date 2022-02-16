@@ -16,5 +16,5 @@
       "name": "res"
     }
   ],
-  "scriptFile": "../dist/nwa-api-booking-post/index.js"
+  "scriptFile": "../dist/nwa-api-bookings/index.js"
 }
